@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 - 2026-10-16
 
 ### Changed
 
@@ -28,6 +28,9 @@
   not in the list.
 - `scripts/check_model_catalog.py` reports drift between the catalog and the
   models the signed-in Codex account and the Anthropic Models API serve.
+- The Altus fork installs from Git with
+  `uv tool install git+https://github.com/altuslabsxyz/codealmanac`; README
+  and RELEASE.md describe the install and release flow.
 
 ## 0.4.0 - 2026-07-10
 
