@@ -4,7 +4,7 @@ from uuid import UUID
 from pydantic import model_validator
 
 from codealmanac.core.models import CodeAlmanacModel
-from codealmanac.services.config.models import HARNESS_MODELS
+from codealmanac.services.config.model_catalog import ModelSource, model_source
 from codealmanac.services.harnesses.models import HarnessKind
 
 type TelemetryValue = (
@@ -78,6 +78,18 @@ type DurationBucket = Literal[
 ]
 
 
+def telemetry_model_value(harness: HarnessKind, model: str) -> str:
+    """Export catalog ids as themselves and any other id as the literal `custom`.
+
+    User-entered model text never leaves the machine; only the catalog and the
+    `custom` marker do.
+    """
+
+    if model_source(model, harness) is ModelSource.CATALOG:
+        return model
+    return ModelSource.CUSTOM.value
+
+
 class CliCommandCompletedProperties(CodeAlmanacModel):
     command: CommandName
     action: CommandAction
@@ -105,8 +117,8 @@ class LifecycleRunCompletedProperties(CodeAlmanacModel):
 
     @model_validator(mode="after")
     def validate_lifecycle_contract(self) -> "LifecycleRunCompletedProperties":
-        if self.model not in HARNESS_MODELS[HarnessKind(self.harness)]:
-            raise ValueError("model is not controlled for harness")
+        if self.model != telemetry_model_value(HarnessKind(self.harness), self.model):
+            raise ValueError("model must be a catalog id for the harness or 'custom'")
         if self.status == "failed" and self.failure_category is None:
             raise ValueError("failed lifecycle events require failure_category")
         if self.status != "failed" and self.failure_category is not None:

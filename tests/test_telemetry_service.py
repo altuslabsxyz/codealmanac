@@ -62,14 +62,37 @@ def make_service(
 
 
 def test_lifecycle_properties_reject_model_for_another_harness() -> None:
-    with pytest.raises(ValidationError, match="model is not controlled for harness"):
+    with pytest.raises(ValidationError, match="catalog id for the harness"):
         LifecycleRunCompletedProperties(
             run_kind="garden",
             status="done",
             harness="codex",
-            model="claude-sonnet-5",
+            model="claude-sonnet-5-5",
             duration_bucket="1-10s",
         )
+
+
+def test_lifecycle_properties_reject_raw_custom_model_text() -> None:
+    with pytest.raises(ValidationError, match="catalog id for the harness"):
+        LifecycleRunCompletedProperties(
+            run_kind="garden",
+            status="done",
+            harness="codex",
+            model="/Users/alice/private-model",
+            duration_bucket="1-10s",
+        )
+
+
+def test_lifecycle_properties_accept_custom_marker() -> None:
+    properties = LifecycleRunCompletedProperties(
+        run_kind="garden",
+        status="done",
+        harness="claude",
+        model="custom",
+        duration_bucket="1-10s",
+    )
+
+    assert properties.model == "custom"
 
 
 def test_identity_is_a_stable_uuid_stored_in_sqlite(tmp_path: Path) -> None:
@@ -162,7 +185,7 @@ def test_capture_once_sends_only_the_first_attempt(tmp_path: Path) -> None:
         "run_kind": "garden",
         "status": "done",
         "harness": "codex",
-        "model": "gpt-5.5",
+        "model": "gpt-6.1-sol",
         "duration_bucket": "1-10s",
     }
     service.capture_once(

@@ -25,7 +25,7 @@ def dispatch_sync(args: argparse.Namespace, app: CodeAlmanac) -> int:
             repository_name=args.wiki,
             apps=parse_sync_apps(args.source_apps),
             harness=harness,
-            model=resolve_harness_model(harness, cli_config),
+            model=resolve_harness_model(harness, cli_config, args.model),
             auto_commit=cli_config.auto_commit,
         )
     )

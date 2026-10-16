@@ -4,6 +4,7 @@ from codealmanac.core.errors import ConflictError, ExecutionFailed, NotFoundErro
 from codealmanac.services.harnesses.models import (
     HarnessEvent,
     HarnessKind,
+    HarnessModelListing,
     HarnessReadiness,
     HarnessRunResult,
 )
@@ -40,6 +41,17 @@ class HarnessesService:
                 message=f"no {kind.value} harness adapter is registered",
             )
         return adapter.check()
+
+    def models(self, kind: HarnessKind) -> HarnessModelListing:
+        try:
+            adapter = self.adapter_for(kind)
+        except NotFoundError:
+            return HarnessModelListing(
+                kind=kind,
+                listed=False,
+                message=f"no {kind.value} harness adapter is registered",
+            )
+        return adapter.models()
 
     def ensure_ready(self, kind: HarnessKind) -> HarnessReadiness:
         readiness = self.adapter_for(kind).check()

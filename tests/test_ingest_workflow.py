@@ -347,7 +347,7 @@ def test_ingest_workflow_resolves_sources_runs_harness_and_refreshes_index(
             cwd=repo,
             inputs=("note.md",),
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
             title="Ingest note",
             guidance="Prefer short pages.",
         ),
@@ -412,7 +412,7 @@ def test_ingest_prompt_disables_commit_policy(
             cwd=repo,
             inputs=("note.md",),
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
             auto_commit=False,
         ),
     )
@@ -443,7 +443,7 @@ def test_ingest_workflow_records_normalized_harness_events(
             cwd=repo,
             inputs=("note.md",),
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
         ),
     )
 
@@ -500,7 +500,7 @@ def test_ingest_prompt_includes_git_source_runtime(
             cwd=repo,
             inputs=("git:diff",),
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
         ),
     )
 
@@ -531,7 +531,7 @@ def test_ingest_prompt_includes_github_source_runtime(
             cwd=repo,
             inputs=("https://github.com/acme/project/pull/42",),
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
         ),
     )
 
@@ -577,7 +577,7 @@ def test_ingest_prompt_includes_web_source_runtime(
             cwd=repo,
             inputs=("https://example.test/retention",),
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
         ),
     )
 
@@ -630,7 +630,7 @@ def test_ingest_workflow_fails_run_when_harness_is_missing(
                 cwd=repo,
                 inputs=("note.md",),
                 harness=HarnessKind.CODEX,
-                model="gpt-5.5",
+                model="gpt-6.1-sol",
             ),
         )
 
@@ -661,7 +661,7 @@ def test_ingest_workflow_classifies_invalid_source_as_source_preparation(
                 cwd=repo,
                 inputs=("github:invalid",),
                 harness=HarnessKind.CODEX,
-                model="gpt-5.5",
+                model="gpt-6.1-sol",
             ),
         )
 
@@ -688,7 +688,7 @@ def test_operation_failure_finishes_when_error_event_write_fails(
             cwd=repo,
             inputs=("note.md",),
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
         ),
     )
     monkeypatch.setattr(
@@ -730,7 +730,7 @@ def test_operation_failure_handles_broken_exception_stringification(
             cwd=repo,
             inputs=("note.md",),
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
         ),
     )
 
@@ -772,7 +772,7 @@ def test_ingest_workflow_classifies_index_refresh_failure_as_indexing(
                 cwd=repo,
                 inputs=("note.md",),
                 harness=HarnessKind.CODEX,
-                model="gpt-5.5",
+                model="gpt-6.1-sol",
             ),
         )
 
@@ -802,7 +802,7 @@ def test_ingest_workflow_ignores_reported_changed_files(
             cwd=repo,
             inputs=("note.md",),
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
         ),
     )
 
@@ -835,7 +835,7 @@ def test_ingest_workflow_fails_when_harness_returns_failed_status(
                 cwd=repo,
                 inputs=("note.md",),
                 harness=HarnessKind.CODEX,
-                model="gpt-5.5",
+                model="gpt-6.1-sol",
             ),
         )
 
@@ -879,7 +879,7 @@ def test_ingest_workflow_reports_failed_harness_even_when_files_changed(
                 cwd=repo,
                 inputs=("note.md",),
                 harness=HarnessKind.CODEX,
-                model="gpt-5.5",
+                model="gpt-6.1-sol",
             ),
         )
 
@@ -925,7 +925,7 @@ def test_ingest_workflow_allows_preexisting_dirty_app_files_when_unchanged(
             cwd=repo,
             inputs=("note.md",),
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
         ),
     )
 
@@ -957,7 +957,7 @@ def test_ingest_workflow_allows_harness_mutation_to_dirty_app_file(
             cwd=repo,
             inputs=("note.md",),
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
         ),
     )
 
@@ -996,7 +996,7 @@ def test_ingest_workflow_allows_preexisting_dirty_almanac_edits(
             cwd=repo,
             inputs=("note.md",),
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
         ),
     )
 
@@ -1026,7 +1026,7 @@ def test_ingest_workflow_runs_without_git_change_tracking(
             cwd=repo,
             inputs=("note.md",),
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
         ),
     )
 
@@ -1043,7 +1043,7 @@ def test_run_ingest_request_requires_inputs(tmp_path: Path):
             cwd=tmp_path,
             inputs=(),
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
         )
 
 

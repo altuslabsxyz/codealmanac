@@ -462,7 +462,7 @@ def test_harness_contract_models_stay_split_by_meaning():
         "models.py",
         "results.py",
     } <= {path.name for path in harness_root.glob("*.py")}
-    assert len(models_text.splitlines()) <= 50
+    assert len(models_text.splitlines()) <= 60
     assert len(actors_text.splitlines()) <= 80
     assert len(events_text.splitlines()) <= 220
     assert len(results_text.splitlines()) <= 100

@@ -24,7 +24,7 @@ from codealmanac.services.setup.requests import (
     RunSetupRequest,
     RunUninstallRequest,
 )
-from codealmanac.services.setup.runners import require_runner
+from codealmanac.services.setup.runners import require_runner, runner_models
 
 
 class SetupService:
@@ -46,6 +46,7 @@ class SetupService:
 
     def run(self, request: RunSetupRequest) -> SetupResult:
         readiness = require_runner(self._runner_probe, request)
+        models = runner_models(self._runner_probe, request)
         config_update = self.set_config(request)
         changes = ()
         if not request.skip_instructions:
@@ -56,6 +57,7 @@ class SetupService:
             changes=changes,
             config_update=config_update,
             runner_readiness=readiness,
+            runner_models=models,
         )
 
     def uninstall(self, request: RunUninstallRequest) -> UninstallResult:

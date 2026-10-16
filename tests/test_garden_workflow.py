@@ -125,7 +125,7 @@ def test_garden_workflow_runs_harness_and_refreshes_index(
         GardenRequest(
             cwd=repo,
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
             title="Garden wiki",
             guidance="Improve a single page if useful.",
         ),
@@ -185,7 +185,7 @@ def test_garden_prompt_disables_commit_policy(
         GardenRequest(
             cwd=repo,
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
             auto_commit=False,
         ),
     )
@@ -221,7 +221,7 @@ def test_garden_workflow_allows_preexisting_dirty_almanac_edits(
         GardenRequest(
             cwd=repo,
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
         ),
     )
 
@@ -252,7 +252,7 @@ def test_garden_workflow_allows_harness_mutation_outside_almanac(
         GardenRequest(
             cwd=repo,
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
         ),
     )
 
@@ -284,7 +284,7 @@ def test_garden_workflow_records_failed_harness_output_before_error(
             GardenRequest(
                 cwd=repo,
                 harness=HarnessKind.CODEX,
-                model="gpt-5.5",
+                model="gpt-6.1-sol",
             ),
         )
 

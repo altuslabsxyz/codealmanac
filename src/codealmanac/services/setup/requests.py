@@ -1,7 +1,7 @@
 from datetime import timedelta
 from pathlib import Path
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 
 from codealmanac.core.models import CodeAlmanacModel
 from codealmanac.services.automation.defaults import (
@@ -9,7 +9,12 @@ from codealmanac.services.automation.defaults import (
     DEFAULT_SYNC_INTERVAL,
     DEFAULT_UPDATE_INTERVAL,
 )
-from codealmanac.services.config.models import DEFAULT_HARNESS, DEFAULT_HARNESS_MODEL
+from codealmanac.services.config.model_catalog import (
+    DEFAULT_HARNESS_MODEL,
+    normalize_model_id,
+    validate_harness_model,
+)
+from codealmanac.services.config.models import DEFAULT_HARNESS
 from codealmanac.services.harnesses.models import HarnessKind
 from codealmanac.services.setup.models import SetupTarget
 
@@ -46,9 +51,12 @@ class RunSetupRequest(CodeAlmanacModel):
     @field_validator("model")
     @classmethod
     def require_model(cls, value: str) -> str:
-        if not value.strip():
-            raise ValueError("setup model is required")
-        return value
+        return normalize_model_id(value, "setup model")
+
+    @model_validator(mode="after")
+    def model_fits_harness(self) -> "RunSetupRequest":
+        validate_harness_model(self.model, self.harness, "setup model")
+        return self
 
     @field_validator("sync_every", "garden_every", "update_every")
     @classmethod

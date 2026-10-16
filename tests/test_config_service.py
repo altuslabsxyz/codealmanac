@@ -54,7 +54,7 @@ def test_config_service_returns_defaults_without_file(
 
     assert config.auto_commit is True
     assert config.harness.default == HarnessKind.CODEX
-    assert config.harness.model == "gpt-5.5"
+    assert config.harness.model == "gpt-6.1-sol"
     assert config.telemetry.enabled is True
     assert config.automation.sync.enabled is True
     assert config.automation.sync.every == timedelta(hours=5)
@@ -73,7 +73,7 @@ auto_commit = false
 
 [harness]
 default = "claude"
-model = "claude-opus-4-7"
+model = "claude-opus-5-5"
 
 [telemetry]
 enabled = false
@@ -112,7 +112,7 @@ def test_repository_config_is_not_read(
         """
 [harness]
 default = "claude"
-model = "claude-opus-4-7"
+model = "claude-opus-5-5"
 """,
     )
 
@@ -150,13 +150,13 @@ def test_config_set_writes_normal_values(isolated_home: Path) -> None:
 
     app.config.set(set_request(ConfigKey.AUTO_COMMIT, "false"))
     app.config.set(set_request(ConfigKey.HARNESS_DEFAULT, "claude"))
-    app.config.set(set_request(ConfigKey.HARNESS_MODEL, "claude-opus-4-7"))
+    app.config.set(set_request(ConfigKey.HARNESS_MODEL, "claude-opus-5-5"))
     app.config.set(set_request(ConfigKey.TELEMETRY_ENABLED, "false"))
 
     config = app.config.load_user()
     assert config.auto_commit is False
     assert config.harness.default == HarnessKind.CLAUDE
-    assert config.harness.model == "claude-opus-4-7"
+    assert config.harness.model == "claude-opus-5-5"
     assert config.telemetry.enabled is False
 
 

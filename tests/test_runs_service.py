@@ -475,7 +475,7 @@ def test_runs_service_persists_queue_specs_and_selects_oldest_queued_run(
             spec=RunSpec(
                 kind=RunKind.INGEST,
                 harness=HarnessKind.CODEX,
-                model="gpt-5.5",
+                model="gpt-6.1-sol",
                 inputs=("first.md",),
             ),
         )
@@ -487,7 +487,7 @@ def test_runs_service_persists_queue_specs_and_selects_oldest_queued_run(
             spec=RunSpec(
                 kind=RunKind.GARDEN,
                 harness=HarnessKind.CODEX,
-                model="gpt-5.5",
+                model="gpt-6.1-sol",
             ),
         )
     )
@@ -603,7 +603,7 @@ def test_worker_idle_handoff_retains_lock_when_work_is_queued(
             spec=RunSpec(
                 kind=RunKind.GARDEN,
                 harness=HarnessKind.CODEX,
-                model="gpt-5.5",
+                model="gpt-6.1-sol",
             ),
         )
     )

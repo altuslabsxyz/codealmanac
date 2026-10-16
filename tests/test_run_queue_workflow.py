@@ -106,7 +106,7 @@ def test_run_queue_start_persists_spec_and_spawns_worker(
             cwd=repo,
             inputs=("note.md",),
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
         )
     )
     runs = app.runs.list(ListRunsRequest(repository_name=repo.name))
@@ -143,7 +143,7 @@ def test_run_queue_drains_persisted_ingest_spec(
             cwd=repo,
             inputs=("note.md",),
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
             title="Ingest queued note",
             guidance="Keep the page short.",
             auto_commit=False,
@@ -203,7 +203,7 @@ def test_run_queue_processes_work_queued_at_idle_handoff(
                     cwd=repo,
                     inputs=("note.md",),
                     harness=HarnessKind.CODEX,
-                    model="gpt-5.5",
+                    model="gpt-6.1-sol",
                     auto_commit=False,
                 )
             )
@@ -245,7 +245,7 @@ def test_run_queue_max_runs_leaves_later_work_for_next_worker(
             cwd=repo,
             inputs=("first.md",),
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
             auto_commit=False,
         )
     )
@@ -254,7 +254,7 @@ def test_run_queue_max_runs_leaves_later_work_for_next_worker(
             cwd=repo,
             inputs=("second.md",),
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
             auto_commit=False,
         )
     )
@@ -294,7 +294,7 @@ def test_run_queue_drains_persisted_build_spec(
         BuildRequest(
             path=repo,
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
             name="repo",
             guidance="Write the smallest useful first wiki.",
         )
@@ -334,7 +334,7 @@ def test_run_queue_skips_cancelled_queued_runs(
             cwd=repo,
             inputs=("note.md",),
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
         )
     )
     app.workflows.queue.cancel(
@@ -486,7 +486,7 @@ def test_queue_manager_continues_after_running_job_is_cancelled(
             cwd=repo,
             inputs=("note.md",),
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
         )
     )
     second = app.workflows.queue.queue_ingest(
@@ -494,7 +494,7 @@ def test_queue_manager_continues_after_running_job_is_cancelled(
             cwd=repo,
             inputs=("note.md",),
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
         )
     )
 

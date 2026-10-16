@@ -19,6 +19,7 @@ from codealmanac.services.harnesses.kinds import (
     HarnessRunStatus,
 )
 from codealmanac.services.harnesses.results import (
+    HarnessModelListing,
     HarnessReadiness,
     HarnessRunResult,
     HarnessTranscriptRef,
@@ -35,6 +36,7 @@ __all__ = [
     "HarnessEventKind",
     "HarnessFailure",
     "HarnessKind",
+    "HarnessModelListing",
     "HarnessReadiness",
     "HarnessRunActor",
     "HarnessRunResult",

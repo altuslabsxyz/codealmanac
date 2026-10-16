@@ -18,6 +18,11 @@ def add_setup_commands(subcommands: argparse._SubParsersAction) -> None:
         help="agent that runs CodeAlmanac jobs (default: codex)",
     )
     setup.add_argument(
+        "--model",
+        help="runner model id; catalog ids are shown in setup, any other id is "
+        "passed to the runner as entered (default: config harness.model)",
+    )
+    setup.add_argument(
         "--no-auto-commit",
         action="store_true",
         help="tell run agents not to commit wiki changes",

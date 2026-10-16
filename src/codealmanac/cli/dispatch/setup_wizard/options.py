@@ -1,6 +1,19 @@
+from dataclasses import dataclass, replace
+
+from codealmanac.cli.dispatch.config import requested_harness_model
+from codealmanac.cli.dispatch.setup_wizard.models import SetupSelections
 from codealmanac.cli.render.setup import SetupChoiceOption, SetupChoiceScreen
-from codealmanac.services.config.models import HARNESS_MODELS
-from codealmanac.services.harnesses.models import HarnessKind, HarnessReadiness
+from codealmanac.services.config.model_catalog import (
+    DEFAULT_HARNESS_MODELS,
+    ModelSource,
+    catalog_models,
+    model_source,
+)
+from codealmanac.services.harnesses.models import (
+    HarnessKind,
+    HarnessModelListing,
+    HarnessReadiness,
+)
 from codealmanac.services.setup.models import SetupTarget
 
 
@@ -66,14 +79,63 @@ def runner_option(
     return SetupChoiceOption(label, details, shortcuts, disabled=True)
 
 
-def model_options(harness: HarnessKind) -> tuple[SetupChoiceOption, ...]:
-    return tuple(
-        SetupChoiceOption(
-            MODEL_LABELS[model],
-            (MODEL_DETAILS[model],),
-        )
-        for model in HARNESS_MODELS[harness]
-    )
+@dataclass(frozen=True)
+class WizardModel:
+    id: str
+    option: SetupChoiceOption
+
+
+def listing_for(
+    harness: HarnessKind,
+    listings: tuple[HarnessModelListing, ...],
+) -> HarnessModelListing | None:
+    """The account model listing for `harness`, when the runner could list."""
+
+    for listing in listings:
+        if listing.kind == harness and listing.listed:
+            return listing
+    return None
+
+
+def wizard_models(
+    harness: HarnessKind,
+    current: str,
+    listing: HarnessModelListing | None = None,
+) -> tuple[WizardModel, ...]:
+    """Catalog models for `harness`, plus the current model when it is custom.
+
+    When the account listing serves at least one catalog model, catalog models
+    it does not serve are disabled, except the current one so an explicit
+    choice is never moved silently.
+    """
+
+    catalog = catalog_models(harness)
+    filtering = listing is not None and any(listing.serves(m.id) for m in catalog)
+    unserved_note = f"not served by your {harness.value} account"
+    models: list[WizardModel] = []
+    for model in catalog:
+        unserved = listing is not None and not listing.serves(model.id)
+        if not unserved:
+            option = SetupChoiceOption(model.label, (model.detail,))
+        elif filtering and model.id != current:
+            option = SetupChoiceOption(model.label, (unserved_note,), disabled=True)
+        else:
+            option = SetupChoiceOption(model.label, (model.detail, unserved_note))
+        models.append(WizardModel(model.id, option))
+    if model_source(current, harness) is ModelSource.CUSTOM:
+        details = [f"custom model id, passed to {harness.value} as entered"]
+        if listing is not None and not listing.serves(current):
+            details.append(f"not in your {harness.value} account's model list")
+        models.append(WizardModel(current, SetupChoiceOption(current, tuple(details))))
+    return tuple(models)
+
+
+def model_options(
+    harness: HarnessKind,
+    current: str,
+    listing: HarnessModelListing | None = None,
+) -> tuple[SetupChoiceOption, ...]:
+    return tuple(model.option for model in wizard_models(harness, current, listing))
 
 
 def update_options() -> tuple[SetupChoiceOption, ...]:
@@ -157,14 +219,63 @@ def runner_index(harness: HarnessKind) -> int:
     return 0
 
 
-def model_for_index(harness: HarnessKind, index: int) -> str:
-    models = HARNESS_MODELS[harness]
-    return models[index] if index < len(models) else models[0]
+def wizard_current_model(
+    harness: HarnessKind,
+    defaults: SetupSelections,
+    requested: str | None,
+    listing: HarnessModelListing | None = None,
+) -> str:
+    """Model to preselect for the runner chosen on the wizard's first screen.
+
+    An explicit `--model` always wins. Otherwise a configured or default
+    catalog model the account does not serve yields to the first catalog model
+    it does serve, so the preselected choice is one that can run.
+    """
+
+    if requested is not None:
+        return requested_harness_model(harness, requested)
+    current = defaults.model if harness == defaults.harness else None
+    current = current or DEFAULT_HARNESS_MODELS[harness]
+    if (
+        listing is None
+        or listing.serves(current)
+        or model_source(current, harness) is ModelSource.CUSTOM
+    ):
+        return current
+    for model in catalog_models(harness):
+        if listing.serves(model.id):
+            return model.id
+    return current
 
 
-def model_index(harness: HarnessKind, model: str) -> int:
-    models = HARNESS_MODELS[harness]
-    return models.index(model) if model in models else 0
+def requested_model_selections(
+    selections: SetupSelections,
+    requested: str | None,
+) -> SetupSelections:
+    """Apply an explicit `--model` to non-interactive setup selections."""
+
+    if requested is None:
+        return selections
+    model = requested_harness_model(selections.harness, requested)
+    return replace(selections, model=model)
+
+
+def model_for_index(
+    harness: HarnessKind,
+    index: int,
+    current: str,
+    listing: HarnessModelListing | None = None,
+) -> str:
+    return wizard_models(harness, current, listing)[index].id
+
+
+def model_index(
+    harness: HarnessKind,
+    current: str,
+    listing: HarnessModelListing | None = None,
+) -> int:
+    ids = tuple(model.id for model in wizard_models(harness, current, listing))
+    return ids.index(current)
 
 
 def parse_setup_targets(value: str) -> tuple[SetupTarget, ...]:
@@ -173,25 +284,7 @@ def parse_setup_targets(value: str) -> tuple[SetupTarget, ...]:
     return (SetupTarget(value),)
 
 
-MODEL_LABELS = {
-    "gpt-5.5": "GPT-5.5",
-    "gpt-5.4": "GPT-5.4",
-    "gpt-5.4-mini": "GPT-5.4-Mini",
-    "gpt-5.3-codex-spark": "GPT-5.3-Codex-Spark",
-    "claude-sonnet-5": "Claude Sonnet 5",
-    "claude-opus-4-7": "Claude Opus 4.7",
-    "claude-haiku-4-5": "Claude Haiku 4.5",
-}
 RUNNER_LABELS = {
     HarnessKind.CODEX: "Codex",
     HarnessKind.CLAUDE: "Claude",
-}
-MODEL_DETAILS = {
-    "gpt-5.5": "recommended wiki-writing runner",
-    "gpt-5.4": "strong general runner",
-    "gpt-5.4-mini": "faster routine maintenance",
-    "gpt-5.3-codex-spark": "lightweight small updates",
-    "claude-sonnet-5": "recommended maintenance runner",
-    "claude-opus-4-7": "deep rebuilds and hard gardens",
-    "claude-haiku-4-5": "small routine updates",
 }

@@ -1,5 +1,8 @@
 from codealmanac.core.errors import ExecutionFailed
-from codealmanac.services.harnesses.models import HarnessReadiness
+from codealmanac.services.harnesses.models import (
+    HarnessModelListing,
+    HarnessReadiness,
+)
 from codealmanac.services.setup.ports import RunnerReadinessProbe
 from codealmanac.services.setup.requests import RunSetupRequest
 
@@ -24,3 +27,12 @@ def require_runner(
     if readiness.repair is not None:
         message = f"{message}. {readiness.repair}"
     raise ExecutionFailed(message)
+
+
+def runner_models(
+    probe: RunnerReadinessProbe | None,
+    request: RunSetupRequest,
+) -> HarnessModelListing | None:
+    if probe is None:
+        return None
+    return probe.models(request.harness)

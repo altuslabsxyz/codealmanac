@@ -311,7 +311,7 @@ def write_run_record(
         RunSpec(
             kind=RunKind.INGEST,
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
             inputs=("note.md",),
         ),
         "Active run",

@@ -8,30 +8,21 @@ def add_run_commands(subcommands: argparse._SubParsersAction) -> None:
     init.add_argument("path", nargs="?", default=".")
     init.add_argument("--name")
     init.add_argument("--description", default="")
-    init.add_argument(
-        "--using",
-        choices=tuple(kind.value for kind in HarnessKind),
-    )
+    add_runner_arguments(init)
     init.add_argument("--guidance")
     init.add_argument("--json", action="store_true")
 
     ingest = subcommands.add_parser("ingest", help="ingest local material")
     ingest.add_argument("inputs", nargs="+")
     ingest.add_argument("--wiki")
-    ingest.add_argument(
-        "--using",
-        choices=tuple(kind.value for kind in HarnessKind),
-    )
+    add_runner_arguments(ingest)
     ingest.add_argument("--title")
     ingest.add_argument("--guidance")
     ingest.add_argument("--json", action="store_true")
 
     garden = subcommands.add_parser("garden", help="garden the local wiki")
     garden.add_argument("--wiki")
-    garden.add_argument(
-        "--using",
-        choices=tuple(kind.value for kind in HarnessKind),
-    )
+    add_runner_arguments(garden)
     garden.add_argument("--title")
     garden.add_argument("--guidance")
     garden.add_argument("--json", action="store_true")
@@ -47,16 +38,25 @@ def add_run_commands(subcommands: argparse._SubParsersAction) -> None:
     sync = subcommands.add_parser("sync", help="sync recently active transcripts")
     sync.add_argument("--wiki")
     sync.add_argument("--from", dest="source_apps")
-    sync.add_argument(
-        "--using",
-        choices=tuple(kind.value for kind in HarnessKind),
-    )
+    add_runner_arguments(sync)
     sync.add_argument("--json", action="store_true")
     sync_subcommands = sync.add_subparsers(dest="sync_command")
     sync_status = sync_subcommands.add_parser("status", help="show sync readiness")
     sync_status.add_argument("--wiki")
     sync_status.add_argument("--from", dest="source_apps")
     sync_status.add_argument("--json", action="store_true")
+
+
+def add_runner_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--using",
+        choices=tuple(kind.value for kind in HarnessKind),
+        help="agent that runs this job (default: config harness.default)",
+    )
+    parser.add_argument(
+        "--model",
+        help="model id for this job (default: config harness.model)",
+    )
 
 
 def hidden_run_command(

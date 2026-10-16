@@ -132,7 +132,7 @@ def test_sync_run_queues_one_ingest_run_per_repository_and_records_scan_time(
         SyncRequest(
             apps=(TranscriptApp.CODEX,),
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
             now=current_time(),
             auto_commit=False,
         )
@@ -188,7 +188,7 @@ def test_sync_advances_scan_time_even_when_queueing_fails(
         SyncRequest(
             apps=(TranscriptApp.CODEX,),
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
             now=current_time(),
         )
     )

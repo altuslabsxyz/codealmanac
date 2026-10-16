@@ -20,6 +20,28 @@ class HarnessReadiness(CodeAlmanacModel):
         return required_text(value, "harness readiness message")
 
 
+class HarnessModelListing(CodeAlmanacModel):
+    """Model ids the signed-in account serves on one harness, when it can list them.
+
+    `listed` is false when the surface cannot list models or the probe failed;
+    `message` then says why. Hidden ids are served but kept out of the picker.
+    """
+
+    kind: HarnessKind
+    listed: bool
+    served: tuple[str, ...] = ()
+    hidden: tuple[str, ...] = ()
+    message: str
+
+    @field_validator("message")
+    @classmethod
+    def require_listing_message(cls, value: str) -> str:
+        return required_text(value, "harness model listing message")
+
+    def serves(self, model: str) -> bool:
+        return model in self.served or model in self.hidden
+
+
 class HarnessTranscriptRef(CodeAlmanacModel):
     kind: HarnessKind
     session_id: str

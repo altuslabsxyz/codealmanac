@@ -19,6 +19,7 @@ from codealmanac.services.telemetry.models import (
     TelemetryEvent,
     TelemetryIdentity,
     TelemetryValue,
+    telemetry_model_value,
 )
 from codealmanac.services.telemetry.ports import TelemetrySender
 from codealmanac.services.telemetry.store import TelemetryIdentityStore
@@ -146,7 +147,7 @@ class TelemetryService:
                 run_kind=record.kind.value,
                 status=record.status.value,
                 harness=spec.harness.value,
-                model=spec.model,
+                model=telemetry_model_value(spec.harness, spec.model),
                 duration_bucket=duration_bucket(
                     max(0.0, (record.finished_at - started_at).total_seconds())
                 ),

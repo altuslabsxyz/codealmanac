@@ -22,7 +22,15 @@ def dispatch_setup(args: argparse.Namespace, app: CodeAlmanac) -> int:
     try:
         user_config = app.config.load_user()
         runner_status = () if args.yes or args.json else app.harnesses.check()
-        selections = resolve_setup_selections(args, user_config, runner_status)
+        model_listings = tuple(
+            app.harnesses.models(item.kind) for item in runner_status if item.available
+        )
+        selections = resolve_setup_selections(
+            args,
+            user_config,
+            runner_status,
+            model_listings,
+        )
     except SetupCancelled:
         print("CodeAlmanac setup canceled.", file=sys.stderr)
         return 1

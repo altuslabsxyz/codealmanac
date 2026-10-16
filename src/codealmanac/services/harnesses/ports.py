@@ -4,6 +4,7 @@ from typing import Protocol
 from codealmanac.services.harnesses.models import (
     HarnessEvent,
     HarnessKind,
+    HarnessModelListing,
     HarnessReadiness,
     HarnessRunResult,
 )
@@ -17,6 +18,9 @@ class HarnessAdapter(Protocol):
 
     def check(self) -> HarnessReadiness:
         """Return local readiness without starting an agent run."""
+
+    def models(self) -> HarnessModelListing:
+        """List model ids the signed-in account serves, without starting a run."""
 
     def run(
         self,

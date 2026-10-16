@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Protocol
 
@@ -13,6 +13,7 @@ from yoke import (
     CodexSandbox,
     Event,
     Harness,
+    Model,
     ProviderOptions,
     Readiness,
     Run,
@@ -28,6 +29,7 @@ from codealmanac.services.harnesses.models import (
     HarnessEvent,
     HarnessEventKind,
     HarnessKind,
+    HarnessModelListing,
     HarnessReadiness,
     HarnessRunResult,
 )
@@ -54,6 +56,9 @@ class YokeHarness(Protocol):
     def check_sync(self) -> Readiness:
         """Check provider readiness."""
 
+    def models_sync(self) -> tuple[Model, ...]:
+        """List the models the signed-in account serves on this surface."""
+
     def run_sync(self, prompt: str, options: RunOptions) -> Run:
         """Run one provider task."""
 
@@ -79,23 +84,31 @@ class YokeHarnessAdapter:
 
     def check(self) -> HarnessReadiness:
         try:
-            readiness_cwd = self.runtime_root.parent / "readiness"
-            readiness_cwd.mkdir(parents=True, exist_ok=True)
-            return project_readiness(
-                self.factory(
-                    self.kind,
-                    readiness_cwd,
-                    None,
-                    self.runtime_root,
-                ).check_sync(),
-                self.kind,
-            )
+            return project_readiness(self.probe_harness().check_sync(), self.kind)
         except (FileNotFoundError, TimeoutError, ValidationError, YokeError) as error:
             return HarnessReadiness(
                 kind=self.kind,
                 available=False,
                 message=str(error),
             )
+
+    def models(self) -> HarnessModelListing:
+        try:
+            listed = self.probe_harness().models_sync()
+        except (FileNotFoundError, TimeoutError, ValidationError, YokeError) as error:
+            return HarnessModelListing(
+                kind=self.kind,
+                listed=False,
+                message=str(error) or type(error).__name__,
+            )
+        return project_model_listing(listed, self.kind)
+
+    def probe_harness(self) -> YokeHarness:
+        """Bind probes to the state-sibling directory, never the caller's cwd."""
+
+        readiness_cwd = self.runtime_root.parent / "readiness"
+        readiness_cwd.mkdir(parents=True, exist_ok=True)
+        return self.factory(self.kind, readiness_cwd, None, self.runtime_root)
 
     def run(
         self,
@@ -201,6 +214,27 @@ def project_readiness(
         available=readiness.available,
         message=readiness.message,
         repair=readiness.fix,
+    )
+
+
+def project_model_listing(
+    models: Sequence[Model],
+    kind: HarnessKind,
+) -> HarnessModelListing:
+    served = tuple(model.id for model in models if not model.hidden)
+    hidden = tuple(model.id for model in models if model.hidden)
+    if len(served) + len(hidden) == 0:
+        return HarnessModelListing(
+            kind=kind,
+            listed=False,
+            message=f"{kind.value} returned no models",
+        )
+    return HarnessModelListing(
+        kind=kind,
+        listed=True,
+        served=served,
+        hidden=hidden,
+        message=f"{len(served) + len(hidden)} {kind.value} models listed",
     )
 
 

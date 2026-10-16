@@ -9,6 +9,7 @@ from codealmanac.services.harnesses.models import (
     HarnessEvent,
     HarnessEventKind,
     HarnessKind,
+    HarnessModelListing,
     HarnessReadiness,
     HarnessRunResult,
     HarnessRunStatus,
@@ -33,6 +34,14 @@ class FakeHarnessAdapter:
             message=f"{self.kind.value} ready",
         )
 
+    def models(self) -> HarnessModelListing:
+        return HarnessModelListing(
+            kind=self.kind,
+            listed=True,
+            served=("served-model",),
+            message="1 models listed",
+        )
+
     def run(self, request: RunHarnessRequest, on_event=None) -> HarnessRunResult:
         self.requests.append(request)
         return HarnessRunResult(
@@ -52,7 +61,7 @@ def test_harnesses_service_runs_registered_adapter(tmp_path: Path):
     result = service.run_ready(
         RunHarnessRequest(
             kind=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
             agent=HarnessAgentKind.INGEST,
             cwd=tmp_path,
             prompt="Update the wiki from these source briefs.",
@@ -129,7 +138,7 @@ def test_harnesses_service_distinguishes_event_sink_failure(tmp_path: Path):
         service.run_ready(
             RunHarnessRequest(
                 kind=HarnessKind.CODEX,
-                model="gpt-5.5",
+                model="gpt-6.1-sol",
                 agent=HarnessAgentKind.BUILD,
                 cwd=tmp_path,
                 prompt="Build the wiki.",
@@ -192,3 +201,15 @@ def test_harnesses_service_rejects_missing_or_duplicate_adapters():
 def test_run_harness_request_requires_prompt(tmp_path: Path):
     with pytest.raises(ValidationError):
         RunHarnessRequest(kind=HarnessKind.CODEX, cwd=tmp_path, prompt=" ")
+
+
+def test_harnesses_service_lists_models_or_explains_missing_adapter():
+    service = HarnessesService((FakeHarnessAdapter(HarnessKind.CODEX),))
+
+    listed = service.models(HarnessKind.CODEX)
+    missing = service.models(HarnessKind.CLAUDE)
+
+    assert listed.listed is True
+    assert listed.serves("served-model")
+    assert missing.listed is False
+    assert missing.message == "no claude harness adapter is registered"

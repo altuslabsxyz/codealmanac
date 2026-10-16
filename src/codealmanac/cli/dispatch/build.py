@@ -17,7 +17,7 @@ def dispatch_init(args: argparse.Namespace, app: CodeAlmanac) -> int:
     request = BuildRequest(
         path=Path(args.path),
         harness=harness,
-        model=resolve_harness_model(harness, cli_config),
+        model=resolve_harness_model(harness, cli_config, args.model),
         name=args.name,
         description=args.description,
         guidance=args.guidance,

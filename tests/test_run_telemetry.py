@@ -41,7 +41,7 @@ class RecordingSender:
         self.events.append(event)
 
 
-def queued_run(tmp_path: Path, *, model: str = "gpt-5.5"):
+def queued_run(tmp_path: Path, *, model: str = "gpt-6.1-sol"):
     sender = RecordingSender()
     app = create_app(
         AppConfig(database_path=tmp_path / "codealmanac.db"),
@@ -88,7 +88,7 @@ def test_terminal_run_is_captured_exactly_once_without_identifiers(
     assert event.properties["run_kind"] == "garden"
     assert event.properties["status"] == "done"
     assert event.properties["harness"] == "codex"
-    assert event.properties["model"] == "gpt-5.5"
+    assert event.properties["model"] == "gpt-6.1-sol"
     assert "failure_category" not in event.properties
     dumped = event.model_dump_json()
     assert run.run_id not in dumped
@@ -112,7 +112,7 @@ def test_failed_run_has_only_controlled_failure_category(tmp_path: Path) -> None
     assert "private provider output" not in sender.events[0].model_dump_json()
 
 
-def test_lifecycle_event_drops_uncontrolled_private_model_text(
+def test_lifecycle_event_exports_custom_marker_for_unlisted_model_text(
     tmp_path: Path,
 ) -> None:
     private_model = "/Users/alice/private-model-token"
@@ -122,7 +122,10 @@ def test_lifecycle_event_drops_uncontrolled_private_model_text(
         FinishRunRequest(run_id=run.run_id, status=RunStatus.DONE)
     )
 
-    assert sender.events == []
+    assert [event.name for event in sender.events] == ["lifecycle run completed"]
+    assert sender.events[0].properties["model"] == "custom"
+    assert "alice" not in sender.events[0].model_dump_json()
+    assert "private-model-token" not in sender.events[0].model_dump_json()
 
 
 def test_queued_cancellation_emits_terminal_event(tmp_path: Path) -> None:
@@ -315,7 +318,7 @@ def test_worker_spawn_crash_emits_exception_and_failed_lifecycle(
             spec=RunSpec(
                 kind=RunKind.GARDEN,
                 harness=HarnessKind.CODEX,
-                model="gpt-5.5",
+                model="gpt-6.1-sol",
             ),
         )
     )
@@ -377,7 +380,7 @@ def test_worker_wait_crash_is_captured_even_after_executor_finished(
             spec=RunSpec(
                 kind=RunKind.GARDEN,
                 harness=HarnessKind.CODEX,
-                model="gpt-5.5",
+                model="gpt-6.1-sol",
             ),
         )
     )

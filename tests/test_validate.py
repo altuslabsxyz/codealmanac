@@ -167,7 +167,7 @@ def test_lifecycle_run_fails_when_validation_fails(
                 cwd=repo,
                 inputs=("note.md",),
                 harness=HarnessKind.CODEX,
-                model="gpt-5.5",
+                model="gpt-6.1-sol",
             ),
         )
 

@@ -1,4 +1,5 @@
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -25,6 +26,7 @@ from codealmanac.services.automation.models import (
 )
 from codealmanac.services.harnesses.models import (
     HarnessKind,
+    HarnessModelListing,
     HarnessReadiness,
     HarnessRunResult,
     HarnessRunStatus,
@@ -141,12 +143,27 @@ The public CLI gardened the local wiki graph.
 
 class CliNoopHarnessAdapter:
     kind = HarnessKind.CODEX
+    served: tuple[str, ...] = ()
 
     def check(self) -> HarnessReadiness:
         return HarnessReadiness(
             kind=self.kind,
             available=True,
             message="codex ready",
+        )
+
+    def models(self) -> HarnessModelListing:
+        if len(self.served) == 0:
+            return HarnessModelListing(
+                kind=self.kind,
+                listed=False,
+                message="model listing is not available",
+            )
+        return HarnessModelListing(
+            kind=self.kind,
+            listed=True,
+            served=self.served,
+            message=f"{len(self.served)} models listed",
         )
 
     def run(self, request: RunHarnessRequest, on_event=None) -> HarnessRunResult:
@@ -156,6 +173,14 @@ class CliNoopHarnessAdapter:
             output_text="completed through CLI",
             summary="completed through CLI",
         )
+
+
+class CliNoopClaudeHarnessAdapter(CliNoopHarnessAdapter):
+    kind = HarnessKind.CLAUDE
+
+
+class CliListingHarnessAdapter(CliNoopHarnessAdapter):
+    served = ("gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna")
 
 
 class CliUnavailableHarnessAdapter:
@@ -170,6 +195,13 @@ class CliUnavailableHarnessAdapter:
 
     def run(self, request: RunHarnessRequest, on_event=None) -> HarnessRunResult:
         raise AssertionError("an unavailable harness never runs")
+
+    def models(self) -> HarnessModelListing:
+        return HarnessModelListing(
+            kind=self.kind,
+            listed=False,
+            message="runner unavailable",
+        )
 
 
 class CliWorkerSpawner:
@@ -501,7 +533,7 @@ def test_cli_setup_interactive_choices_can_disable_update_and_commits(
         )
     )
     monkeypatch.setattr(
-        "codealmanac.cli.dispatch.setup_tui.read_setup_key",
+        "codealmanac.cli.dispatch.setup_wizard.choices.read_setup_key",
         lambda: next(keys),
     )
 
@@ -517,9 +549,7 @@ def test_cli_setup_interactive_choices_can_disable_update_and_commits(
     assert "[7/7]" in output.out
     assert output.out.index("AI runner") < output.out.index("Runner model")
     assert output.out.index("Runner model") < output.out.index("Agent instructions")
-    assert (
-        "Add CodeAlmanac instructions to your AGENTS.md / CLAUDE.md:" in output.out
-    )
+    assert "Add CodeAlmanac instructions to your AGENTS.md / CLAUDE.md:" in output.out
     assert "Install CodeAlmanac instructions for:" not in output.out
     assert "almanac: update wiki context" in output.out
     assert "almanac/architecture/indexing.md" in output.out
@@ -553,7 +583,7 @@ def test_cli_setup_interactive_choices_can_disable_update_and_commits(
     )
     assert "auto_commit = false\n" in config_text
     assert 'default = "codex"\n' in config_text
-    assert 'model = "gpt-5.5"\n' in config_text
+    assert 'model = "gpt-6.1-sol"\n' in config_text
     assert "[telemetry]\nenabled = false\n" in config_text
 
 
@@ -571,9 +601,7 @@ def test_cli_setup_yes_enables_telemetry_and_flag_disables_it(
     assert main(["setup", "--yes", "--target", "codex"]) == 0
     assert app.config.load_user().telemetry.enabled is True
 
-    assert main(
-        ["setup", "--yes", "--target", "codex", "--no-telemetry"]
-    ) == 0
+    assert main(["setup", "--yes", "--target", "codex", "--no-telemetry"]) == 0
     assert app.config.load_user().telemetry.enabled is False
 
 
@@ -594,7 +622,7 @@ def test_cli_setup_no_telemetry_flag_forces_opt_out_without_permission_screen(
     )
     keys = iter(("\r", "\r", "\r", "\r", "\r", "\r"))
     monkeypatch.setattr(
-        "codealmanac.cli.dispatch.setup_tui.read_setup_key",
+        "codealmanac.cli.dispatch.setup_wizard.choices.read_setup_key",
         lambda: next(keys),
     )
 
@@ -727,7 +755,7 @@ def test_cli_setup_no_auto_commit_writes_user_config(
     config_text = config_path.read_text(encoding="utf-8")
     assert "auto_commit = false\n" in config_text
     assert 'default = "codex"\n' in config_text
-    assert 'model = "gpt-5.5"\n' in config_text
+    assert 'model = "gpt-6.1-sol"\n' in config_text
 
 
 def test_cli_setup_skip_instructions_json(isolated_home: Path, monkeypatch, capsys):
@@ -1517,7 +1545,7 @@ def test_cli_hidden_run_worker_drains_queued_run(
             cwd=repo,
             inputs=("note.md",),
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
         )
     )
     monkeypatch.setattr("codealmanac.cli.main.create_app", lambda: app)
@@ -1816,9 +1844,10 @@ def test_cli_jobs_attach_ctrl_c_detaches_without_mutating_run(
         f"cancel: codealmanac jobs cancel {record.run_id}\n"
     )
     assert output.err == ""
-    assert default_cli_app.runs.show(
-        ShowRunRequest(run_id=record.run_id)
-    ).status == RunStatus.QUEUED
+    assert (
+        default_cli_app.runs.show(ShowRunRequest(run_id=record.run_id)).status
+        == RunStatus.QUEUED
+    )
 
 
 def test_cli_jobs_attach_ctrl_c_keeps_json_stream_clean(
@@ -1862,9 +1891,10 @@ def test_cli_jobs_attach_ctrl_c_keeps_json_stream_clean(
     assert update["record"]["run_id"] == record.run_id
     assert update["terminal"] is False
     assert output.err == ""
-    assert default_cli_app.runs.show(
-        ShowRunRequest(run_id=record.run_id)
-    ).status == RunStatus.QUEUED
+    assert (
+        default_cli_app.runs.show(ShowRunRequest(run_id=record.run_id)).status
+        == RunStatus.QUEUED
+    )
 
 
 def test_cli_jobs_rejects_path_shaped_run_ids(capsys):
@@ -2163,3 +2193,332 @@ def run_git(repo: Path, *args: str) -> None:
         capture_output=True,
         check=True,
     )
+
+
+def test_cli_ingest_model_flag_overrides_configured_model(
+    tmp_path: Path,
+    isolated_home: Path,
+    monkeypatch,
+    capsys,
+):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "note.md").write_text("auth decision\n", encoding="utf-8")
+    app = create_app(
+        AppConfig(database_path=isolated_home / ".codealmanac/codealmanac.db"),
+        harness_adapters=(CliWritingHarnessAdapter(),),
+        worker_spawner=CliWorkerSpawner(),
+    )
+    initialize_repository(app, path=repo)
+    monkeypatch.chdir(repo)
+    monkeypatch.setattr("codealmanac.cli.main.create_app", lambda: app)
+
+    assert main(["ingest", "note.md", "--model", "gpt-6.2-nova", "--json"]) == 0
+
+    data = json.loads(capsys.readouterr().out)
+    spec = app.runs.read_spec(ReadRunSpecRequest(run_id=data["run_id"]))
+    assert spec is not None
+    assert spec.harness == HarnessKind.CODEX
+    assert spec.model == "gpt-6.2-nova"
+
+
+def test_cli_ingest_model_flag_rejects_other_harness_catalog_model(
+    tmp_path: Path,
+    isolated_home: Path,
+    monkeypatch,
+    capsys,
+):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "note.md").write_text("auth decision\n", encoding="utf-8")
+    app = create_app(
+        AppConfig(database_path=isolated_home / ".codealmanac/codealmanac.db"),
+        harness_adapters=(CliWritingHarnessAdapter(),),
+        worker_spawner=CliWorkerSpawner(),
+    )
+    initialize_repository(app, path=repo)
+    monkeypatch.chdir(repo)
+    monkeypatch.setattr("codealmanac.cli.main.create_app", lambda: app)
+
+    exit_code = main(
+        ["ingest", "note.md", "--using", "claude", "--model", "gpt-6.1-sol"]
+    )
+
+    output = capsys.readouterr()
+    assert exit_code == 1
+    assert 'codealmanac: --model "gpt-6.1-sol" is a codex catalog model' in output.err
+    assert "passed to claude as entered" in output.err
+    assert app.runs.list(ListRunsRequest(repository_name="repo")) == ()
+
+
+def test_cli_config_set_harness_model_reports_custom_ids(
+    isolated_home: Path,
+    capsys,
+):
+    assert main(["config", "set", "harness.model", "gpt-6-luna"]) == 0
+    assert capsys.readouterr().out == "config: harness.model = gpt-6-luna\n"
+
+    assert main(["config", "set", "harness.model", "gpt-6.2-nova"]) == 0
+
+    output = capsys.readouterr()
+    assert output.out == (
+        "config: harness.model = gpt-6.2-nova\n"
+        "  custom model id: not in the built-in catalog, "
+        "passed to the runner as entered\n"
+    )
+    config_text = (isolated_home / ".codealmanac/config.toml").read_text(
+        encoding="utf-8"
+    )
+    assert 'model = "gpt-6.2-nova"\n' in config_text
+
+
+def test_cli_setup_yes_model_flag_writes_custom_model(
+    isolated_home: Path,
+    monkeypatch,
+    capsys,
+):
+    app = create_app(
+        AppConfig(database_path=isolated_home / ".codealmanac/codealmanac.db"),
+        scheduler=CliSchedulerAdapter(),
+        harness_adapters=(CliNoopHarnessAdapter(),),
+    )
+    monkeypatch.setattr("codealmanac.cli.main.create_app", lambda: app)
+
+    exit_code = main(["setup", "--yes", "--target", "codex", "--model", "gpt-6.2-nova"])
+
+    output = capsys.readouterr()
+    assert exit_code == 0
+    assert "gpt-6.2-nova (custom model id) will run CodeAlmanac jobs" in output.out
+    config_text = (isolated_home / ".codealmanac/config.toml").read_text(
+        encoding="utf-8"
+    )
+    assert 'default = "codex"\n' in config_text
+    assert 'model = "gpt-6.2-nova"\n' in config_text
+
+
+def test_cli_setup_model_flag_rejects_other_harness_catalog_model(
+    isolated_home: Path,
+    monkeypatch,
+    capsys,
+):
+    app = create_app(
+        AppConfig(database_path=isolated_home / ".codealmanac/codealmanac.db"),
+        scheduler=CliSchedulerAdapter(),
+        harness_adapters=(CliNoopHarnessAdapter(),),
+    )
+    monkeypatch.setattr("codealmanac.cli.main.create_app", lambda: app)
+
+    exit_code = main(
+        ["setup", "--yes", "--target", "codex", "--model", "claude-opus-5-5"]
+    )
+
+    output = capsys.readouterr()
+    assert exit_code == 1
+    assert (
+        'codealmanac: --model "claude-opus-5-5" is a claude catalog model' in output.err
+    )
+    assert not (isolated_home / ".codealmanac/config.toml").exists()
+
+
+def test_cli_setup_interactive_keeps_custom_configured_model(
+    isolated_home: Path,
+    monkeypatch,
+    capsys,
+):
+    config_path = isolated_home / ".codealmanac/config.toml"
+    config_path.parent.mkdir(parents=True)
+    config_path.write_text(
+        '[harness]\ndefault = "codex"\nmodel = "gpt-6.2-nova"\n',
+        encoding="utf-8",
+    )
+    app = create_app(
+        AppConfig(database_path=isolated_home / ".codealmanac/codealmanac.db"),
+        scheduler=CliSchedulerAdapter(),
+        harness_adapters=(CliNoopHarnessAdapter(),),
+    )
+    monkeypatch.setattr("codealmanac.cli.main.create_app", lambda: app)
+    monkeypatch.setattr(
+        "codealmanac.cli.dispatch.setup_tui.supports_interactive_setup",
+        lambda: True,
+    )
+    keys = iter(("\r",) * 7)
+    monkeypatch.setattr(
+        "codealmanac.cli.dispatch.setup_wizard.choices.read_setup_key",
+        lambda: next(keys),
+    )
+
+    assert main(["setup", "--target", "codex"]) == 0
+
+    output = capsys.readouterr()
+    assert "recommended wiki-writing runner" in output.out
+    assert "custom model id, passed to codex as entered" in output.out
+    assert "gpt-6.2-nova (custom model id) will run CodeAlmanac jobs" in output.out
+    config_text = config_path.read_text(encoding="utf-8")
+    assert 'model = "gpt-6.2-nova"\n' in config_text
+
+
+def interactive_setup_app(isolated_home: Path, monkeypatch, keys: tuple[str, ...]):
+    app = create_app(
+        AppConfig(database_path=isolated_home / ".codealmanac/codealmanac.db"),
+        scheduler=CliSchedulerAdapter(),
+        harness_adapters=(CliNoopHarnessAdapter(), CliNoopClaudeHarnessAdapter()),
+    )
+    monkeypatch.setattr("codealmanac.cli.main.create_app", lambda: app)
+    monkeypatch.setattr(
+        "codealmanac.cli.dispatch.setup_tui.supports_interactive_setup",
+        lambda: True,
+    )
+    pending = iter(keys)
+    monkeypatch.setattr(
+        "codealmanac.cli.dispatch.setup_wizard.choices.read_setup_key",
+        lambda: next(pending),
+    )
+    return app
+
+
+def test_cli_setup_interactive_runner_switch_uses_new_runner_default(
+    isolated_home: Path,
+    monkeypatch,
+    capsys,
+):
+    config_path = isolated_home / ".codealmanac/config.toml"
+    config_path.parent.mkdir(parents=True)
+    config_path.write_text(
+        '[harness]\ndefault = "codex"\nmodel = "gpt-6.2-nova"\n',
+        encoding="utf-8",
+    )
+    interactive_setup_app(isolated_home, monkeypatch, ("\x1b[C", *("\r",) * 7))
+
+    assert main(["setup", "--target", "codex"]) == 0
+
+    output = capsys.readouterr()
+    assert "custom model id" not in output.out
+    assert "recommended maintenance runner" in output.out
+    assert "claude-sonnet-5-5 will run CodeAlmanac jobs" in output.out
+    config_text = config_path.read_text(encoding="utf-8")
+    assert 'default = "claude"\n' in config_text
+    assert 'model = "claude-sonnet-5-5"\n' in config_text
+
+
+def test_cli_setup_interactive_model_flag_follows_chosen_runner(
+    isolated_home: Path,
+    monkeypatch,
+    capsys,
+):
+    interactive_setup_app(isolated_home, monkeypatch, ("\x1b[C", *("\r",) * 7))
+
+    exit_code = main(["setup", "--target", "codex", "--model", "claude-opus-5-5"])
+
+    output = capsys.readouterr()
+    assert exit_code == 0
+    assert "claude-opus-5-5 will run CodeAlmanac jobs" in output.out
+    config_text = (isolated_home / ".codealmanac/config.toml").read_text(
+        encoding="utf-8"
+    )
+    assert 'default = "claude"\n' in config_text
+    assert 'model = "claude-opus-5-5"\n' in config_text
+
+
+def test_cli_setup_interactive_model_flag_rejects_mismatched_runner_choice(
+    isolated_home: Path,
+    monkeypatch,
+    capsys,
+):
+    interactive_setup_app(isolated_home, monkeypatch, ("\r",) * 7)
+
+    exit_code = main(["setup", "--target", "codex", "--model", "claude-opus-5-5"])
+
+    output = capsys.readouterr()
+    assert exit_code == 1
+    assert (
+        'codealmanac: --model "claude-opus-5-5" is a claude catalog model' in output.err
+    )
+    assert not (isolated_home / ".codealmanac/config.toml").exists()
+
+
+def test_cli_setup_interactive_disables_models_the_account_does_not_serve(
+    isolated_home: Path,
+    monkeypatch,
+    capsys,
+):
+    app = create_app(
+        AppConfig(database_path=isolated_home / ".codealmanac/codealmanac.db"),
+        scheduler=CliSchedulerAdapter(),
+        harness_adapters=(CliListingHarnessAdapter(),),
+    )
+    monkeypatch.setattr("codealmanac.cli.main.create_app", lambda: app)
+    monkeypatch.setattr(
+        "codealmanac.cli.dispatch.setup_tui.supports_interactive_setup",
+        lambda: True,
+    )
+    keys = iter(("\r",) * 7)
+    monkeypatch.setattr(
+        "codealmanac.cli.dispatch.setup_wizard.choices.read_setup_key",
+        lambda: next(keys),
+    )
+
+    assert main(["setup", "--target", "codex"]) == 0
+
+    output = capsys.readouterr()
+    assert "not served by your codex account" in output.out
+    assert "gpt-5.6-sol will run CodeAlmanac jobs" in output.out
+    config_text = (isolated_home / ".codealmanac/config.toml").read_text(
+        encoding="utf-8"
+    )
+    assert 'model = "gpt-5.6-sol"\n' in config_text
+
+
+def test_cli_setup_yes_warns_when_account_does_not_serve_model(
+    isolated_home: Path,
+    monkeypatch,
+    capsys,
+):
+    app = create_app(
+        AppConfig(database_path=isolated_home / ".codealmanac/codealmanac.db"),
+        scheduler=CliSchedulerAdapter(),
+        harness_adapters=(CliListingHarnessAdapter(),),
+    )
+    monkeypatch.setattr("codealmanac.cli.main.create_app", lambda: app)
+
+    assert main(["setup", "--yes", "--target", "codex"]) == 0
+
+    output = capsys.readouterr()
+    collapsed = " ".join(
+        re.sub(r"\x1b\[[0-9;]*m", "", output.out).replace("│", " ").split()
+    )
+    assert "codex: model not served" in collapsed
+    assert "gpt-6.1-sol is not in your codex account's model list" in collapsed
+    assert "(served: gpt-5.6-sol, gpt-5.6-terra, gpt-5.6-luna)" in collapsed
+    assert "pick one with: codealmanac config set harness.model <id>" in collapsed
+    config_text = (isolated_home / ".codealmanac/config.toml").read_text(
+        encoding="utf-8"
+    )
+    assert 'model = "gpt-6.1-sol"\n' in config_text
+
+
+def test_cli_setup_yes_stays_quiet_when_account_serves_model(
+    isolated_home: Path,
+    monkeypatch,
+    capsys,
+):
+    app = create_app(
+        AppConfig(database_path=isolated_home / ".codealmanac/codealmanac.db"),
+        scheduler=CliSchedulerAdapter(),
+        harness_adapters=(CliListingHarnessAdapter(),),
+    )
+    monkeypatch.setattr("codealmanac.cli.main.create_app", lambda: app)
+
+    exit_code = main(
+        ["setup", "--yes", "--target", "codex", "--model", "gpt-5.6-sol", "--json"]
+    )
+
+    output = capsys.readouterr()
+    payload = json.loads(output.out)
+    assert exit_code == 0
+    assert payload["plan"]["harness_model"] == "gpt-5.6-sol"
+    assert payload["runner_models"]["listed"] is True
+    assert payload["runner_models"]["served"] == [
+        "gpt-5.6-sol",
+        "gpt-5.6-terra",
+        "gpt-5.6-luna",
+    ]

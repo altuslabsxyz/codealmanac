@@ -16,39 +16,16 @@ from codealmanac.services.automation.models import (
     AutomationTask,
     AutomationTaskApplyResult,
 )
+from codealmanac.services.config.model_catalog import (
+    DEFAULT_HARNESS_MODEL,
+    ModelSource,
+    normalize_model_id,
+    validate_harness_model,
+)
 from codealmanac.services.harnesses.models import HarnessKind
 
 DEFAULT_HARNESS = HarnessKind.CODEX
-DEFAULT_HARNESS_MODEL = "gpt-5.5"
 DEFAULT_AUTO_COMMIT = True
-CONTROLLED_HARNESS_MODELS = frozenset(
-    (
-        "gpt-5.5",
-        "gpt-5.4",
-        "gpt-5.4-mini",
-        "gpt-5.3-codex-spark",
-        "claude-sonnet-5",
-        "claude-opus-4-7",
-        "claude-haiku-4-5",
-    )
-)
-HARNESS_MODELS = {
-    HarnessKind.CODEX: (
-        "gpt-5.5",
-        "gpt-5.4",
-        "gpt-5.4-mini",
-        "gpt-5.3-codex-spark",
-    ),
-    HarnessKind.CLAUDE: (
-        "claude-sonnet-5",
-        "claude-opus-4-7",
-        "claude-haiku-4-5",
-    ),
-}
-DEFAULT_HARNESS_MODELS = {
-    HarnessKind.CODEX: DEFAULT_HARNESS_MODEL,
-    HarnessKind.CLAUDE: "claude-sonnet-5",
-}
 
 
 class ConfigKey(StrEnum):
@@ -70,19 +47,12 @@ class HarnessConfig(CodeAlmanacModel):
 
     @field_validator("model")
     @classmethod
-    def controlled_model(cls, value: str) -> str:
-        if value not in CONTROLLED_HARNESS_MODELS:
-            allowed = ", ".join(sorted(CONTROLLED_HARNESS_MODELS))
-            raise ValueError(f"harness.model must be one of: {allowed}")
-        return value
+    def single_model_id(cls, value: str) -> str:
+        return normalize_model_id(value)
 
     @model_validator(mode="after")
-    def model_matches_harness(self) -> "HarnessConfig":
-        if self.model not in HARNESS_MODELS[self.default]:
-            allowed = ", ".join(HARNESS_MODELS[self.default])
-            raise ValueError(
-                f"harness.model for {self.default.value} must be one of: {allowed}"
-            )
+    def model_fits_harness(self) -> "HarnessConfig":
+        validate_harness_model(self.model, self.default)
         return self
 
 
@@ -167,6 +137,7 @@ class ConfigSetResult(CodeAlmanacModel):
     path: str
     key: ConfigKey
     value: str
+    model_source: ModelSource | None = None
     automation: AutomationTaskApplyResult | None = None
 
 

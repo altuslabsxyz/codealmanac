@@ -23,6 +23,7 @@ from codealmanac.cli.render.terminal import (
 from codealmanac.services.automation.models import (
     AutomationTask,
 )
+from codealmanac.services.config.model_catalog import ModelSource
 from codealmanac.services.setup.models import (
     SetupResult,
     UninstallResult,
@@ -139,11 +140,25 @@ def ai_runner_step(result: SetupResult) -> SetupStep:
             "with --runner, then verify with: codealmanac doctor",
             warning=True,
         )
-    return SetupStep(
-        "AI runner",
-        runner,
-        f"{result.plan.harness_model} will run CodeAlmanac jobs",
-    )
+    model = result.plan.harness_model
+    if result.plan.harness_model_source is ModelSource.CUSTOM:
+        model = f"{model} (custom model id)"
+    listing = result.runner_models
+    if (
+        listing is not None
+        and listing.listed
+        and not listing.serves(result.plan.harness_model)
+    ):
+        served = ", ".join(listing.served) or "none"
+        return SetupStep(
+            "AI runner",
+            f"{runner}: model not served",
+            f"{model} is not in your {runner} account's model list "
+            f"(served: {served}); pick one with: "
+            "codealmanac config set harness.model <id>",
+            warning=True,
+        )
+    return SetupStep("AI runner", runner, f"{model} will run CodeAlmanac jobs")
 
 
 def product_update_step(result: SetupResult) -> SetupStep:

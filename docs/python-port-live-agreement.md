@@ -5,6 +5,26 @@ It is the constraint document for future agents.
 
 ## Current Decisions
 
+- 2026-10-16: The runner model catalog in
+  `services/config/model_catalog.py` is a recommended list, not an allowlist.
+  `harness.model`, `setup --model`, and `--model` on lifecycle commands accept
+  any single-token model id; catalog ids must match their harness, and any
+  other id passes to the harness as entered so the provider validates it on
+  the first request. Refreshing the catalog is a maintainer edit of one tuple
+  per harness, informed by `scripts/check_model_catalog.py`, which reads the
+  Codex account list through Yoke app-server `model/list` and the Anthropic
+  Models API and never rewrites source.
+- 2026-10-16: The harness port lists the model ids the signed-in account
+  serves (`HarnessAdapter.models()` returning `HarnessModelListing`; Codex via
+  Yoke app-server `model/list`, Claude reports that it cannot list). Setup uses
+  the listing to annotate the catalog, never to define it: unserved catalog
+  models are disabled in the wizard, a served one is preselected, and
+  non-interactive setup warns. Provider lists still never become the product
+  list and never block an explicitly typed model id.
+- 2026-10-16: Lifecycle telemetry exports a catalog model id as itself and any
+  other model as the literal `custom`; this supersedes the 2026-07-16 rule that
+  dropped the whole event. User-entered model text still never leaves the
+  machine, and durable `RunSpec` stays independent of the catalog.
 - 2026-07-15: Anonymous product telemetry is the only remote product exception
   in Python v1. Setup asks last, defaults to the recommended Yes, keeps a visible
   No, and `--no-telemetry`, `telemetry.enabled = false`, `DO_NOT_TRACK`, or

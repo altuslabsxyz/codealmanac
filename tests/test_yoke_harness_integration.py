@@ -352,3 +352,66 @@ def test_callback_receives_nonterminal_events_and_terminal_exactly_once(tmp_path
     assert observed == list(result.events)
     assert observed[-1].kind is HarnessEventKind.DONE
     assert sum(event.kind is HarnessEventKind.DONE for event in observed) == 1
+
+
+class ListingHarness(RecordingHarness):
+    def __init__(self, models):
+        super().__init__(Run(provider=Provider.CODEX, output="ok"))
+        self.models = models
+
+    def models_sync(self):
+        if isinstance(self.models, Exception):
+            raise self.models
+        return self.models
+
+
+def test_adapter_projects_served_and_hidden_models(tmp_path):
+    from yoke import Model
+
+    harness = ListingHarness(
+        (
+            Model(id="gpt-5.6-sol"),
+            Model(id="gpt-5.6-luna", hidden=True),
+        )
+    )
+
+    listing = YokeHarnessAdapter(
+        HarnessKind.CODEX,
+        tmp_path / "harnesses",
+        lambda *_: harness,
+    ).models()
+
+    assert listing.listed is True
+    assert listing.served == ("gpt-5.6-sol",)
+    assert listing.hidden == ("gpt-5.6-luna",)
+    assert listing.serves("gpt-5.6-luna")
+    assert not listing.serves("gpt-6.1-sol")
+
+
+def test_adapter_reports_unsupported_model_listing(tmp_path):
+    from yoke import UnsupportedFeature
+
+    harness = ListingHarness(UnsupportedFeature("Claude model listing is not here"))
+
+    listing = YokeHarnessAdapter(
+        HarnessKind.CLAUDE,
+        tmp_path / "harnesses",
+        lambda *_: harness,
+    ).models()
+
+    assert listing.listed is False
+    assert listing.served == ()
+    assert "Claude model listing is not here" in listing.message
+
+
+def test_adapter_treats_empty_model_list_as_not_listed(tmp_path):
+    harness = ListingHarness(())
+
+    listing = YokeHarnessAdapter(
+        HarnessKind.CODEX,
+        tmp_path / "harnesses",
+        lambda *_: harness,
+    ).models()
+
+    assert listing.listed is False
+    assert listing.message == "codex returned no models"

@@ -253,6 +253,76 @@ codealmanac doctor
 Read commands do not need provider credentials. Write-capable lifecycle
 commands need the selected harness to be available and authenticated.
 
+## Runner Models
+
+CodeAlmanac ships a small recommended model catalog per runner. The first
+entry for each runner is the default that `codealmanac setup` preselects.
+Current catalog (October 2026):
+
+| Runner | Model id | Role |
+| --- | --- | --- |
+| `codex` | `gpt-6.1-sol` | default; recommended wiki-writing runner |
+| `codex` | `gpt-6-astra` | deep rebuilds and hard gardens |
+| `codex` | `gpt-6-luna` | fast routine maintenance |
+| `codex` | `gpt-5.6-sol` | previous generation, served during the GPT-6 rollout |
+| `claude` | `claude-sonnet-5-5` | default; recommended maintenance runner |
+| `claude` | `claude-opus-5-5` | deep rebuilds and hard gardens |
+| `claude` | `claude-haiku-5-5` | small routine updates |
+| `claude` | `claude-fable-5-1` | frontier runner for the hardest rebuilds; needs Fable access on your plan |
+
+### Using a model that is not in the list
+
+The catalog is a recommendation, not an allowlist. Any single-token model id
+is accepted and passed to the runner exactly as entered, so a model released
+after this CodeAlmanac version works without upgrading CodeAlmanac. The
+provider validates the id on its first request, so a typo surfaces as a failed
+job in `codealmanac jobs` rather than as a silent fallback.
+
+Set it once in config:
+
+```bash
+codealmanac config set harness.model gpt-6.2-nova
+# config: harness.model = gpt-6.2-nova
+#   custom model id: not in the built-in catalog, passed to the runner as entered
+```
+
+Or pick a model for one job with `--model` on `init`, `ingest`, `garden`, and
+`sync`, or record it during setup:
+
+```bash
+codealmanac init --model gpt-6.2-nova
+codealmanac ingest README.md --model gpt-6.2-nova
+codealmanac garden --using claude --model claude-opus-6
+codealmanac setup --yes --runner claude --model claude-opus-6
+```
+
+Rules:
+
+- Catalog ids must match the runner: `claude-opus-5-5` is rejected while
+  `harness.default = "codex"`, and `gpt-6.1-sol` is rejected under `claude`.
+  Ids outside the catalog are never rejected for this reason.
+- `codealmanac config set harness.default <runner>` resets `harness.model` to
+  that runner's default.
+- `--model` applies to one job and does not change config. In interactive
+  setup it is validated against the runner you pick on the first screen.
+- When the runner can list the models your account serves (Codex can, through
+  app-server; Claude Code cannot), interactive setup greys out catalog models
+  your account does not serve and preselects one it does. `setup --yes` prints
+  a warning with the served ids instead.
+
+### Keeping the catalog current
+
+Maintainers refresh the catalog in
+`src/codealmanac/services/config/model_catalog.py`; one tuple per runner holds
+the id, label, and role. The drift report compares that table with the models
+the signed-in Codex account serves and, when `ANTHROPIC_API_KEY` is set, with
+the Anthropic Models API. It exits non-zero when a catalog id is no longer
+served.
+
+```bash
+uv run python scripts/check_model_catalog.py
+```
+
 ## What Gets Created By Init
 
 With the default root:
@@ -308,7 +378,7 @@ auto_commit = true
 
 [harness]
 default = "codex"
-model = "gpt-5.5"
+model = "gpt-6.1-sol"
 
 [automation.sync]
 enabled = true
@@ -324,6 +394,10 @@ every = "24h"
 ```
 
 CLI flags still win over config.
+
+`harness.default` and `harness.model` choose the AI runner and its model. See
+[Runner Models](#runner-models) for the current catalog, for using a model
+that is not listed, and for the `--model` flag.
 
 Use `codealmanac config set <key> <value>` for normal changes. It applies
 automation changes to launchd immediately. Direct file edits are supported but

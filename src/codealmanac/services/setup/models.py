@@ -9,8 +9,13 @@ from codealmanac.services.automation.models import (
     AutomationRemoveResult,
     AutomationTask,
 )
+from codealmanac.services.config.model_catalog import ModelSource
 from codealmanac.services.config.models import ConfigUpdateResult
-from codealmanac.services.harnesses.models import HarnessKind, HarnessReadiness
+from codealmanac.services.harnesses.models import (
+    HarnessKind,
+    HarnessModelListing,
+    HarnessReadiness,
+)
 from codealmanac.services.updates.models import UpdateInstallMethod
 
 
@@ -79,6 +84,7 @@ class SetupAutomationRecommendation(CodeAlmanacModel):
 class SetupPlan(CodeAlmanacModel):
     default_harness: HarnessKind
     harness_model: str
+    harness_model_source: ModelSource
     instruction_targets: tuple[SetupTarget, ...]
     auto_commit: bool = True
     automation_mode: SetupAutomationMode = SetupAutomationMode.RECOMMEND
@@ -102,6 +108,7 @@ class SetupResult(CodeAlmanacModel):
     skipped_instructions: bool = False
     changes: tuple[InstructionChange, ...] = ()
     runner_readiness: HarnessReadiness | None = None
+    runner_models: HarnessModelListing | None = None
 
 
 class GlobalStateRemovalResult(CodeAlmanacModel):

@@ -6,7 +6,11 @@ from codealmanac.services.automation.models import (
 from codealmanac.services.automation.requests import (
     RemoveAllAutomationRequest,
 )
-from codealmanac.services.harnesses.models import HarnessKind, HarnessReadiness
+from codealmanac.services.harnesses.models import (
+    HarnessKind,
+    HarnessModelListing,
+    HarnessReadiness,
+)
 from codealmanac.services.setup.models import (
     GlobalStateRemovalResult,
     InstructionChange,
@@ -40,6 +44,9 @@ class AutomationRemover(Protocol):
 class RunnerReadinessProbe(Protocol):
     def readiness(self, kind: HarnessKind) -> HarnessReadiness:
         """Return local readiness of one runner without starting an agent run."""
+
+    def models(self, kind: HarnessKind) -> HarnessModelListing:
+        """List model ids the runner account serves, without starting a run."""
 
 
 class GlobalStateRemover(Protocol):

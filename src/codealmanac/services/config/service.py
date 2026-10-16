@@ -10,10 +10,12 @@ from codealmanac.services.automation.models import (
 )
 from codealmanac.services.automation.requests import ReconcileAutomationTaskRequest
 from codealmanac.services.automation.service import AutomationService
-from codealmanac.services.config.models import (
-    CONTROLLED_HARNESS_MODELS,
+from codealmanac.services.config.model_catalog import (
     DEFAULT_HARNESS_MODELS,
-    HARNESS_MODELS,
+    model_source,
+    validate_harness_model,
+)
+from codealmanac.services.config.models import (
     AutomationConfig,
     ConfigApplyResult,
     ConfigEntry,
@@ -66,10 +68,14 @@ class ConfigService:
         applied = None
         if task is not None:
             applied = self.reconcile_task(task, config.automation.for_task(task))
+        source = None
+        if request.key == ConfigKey.HARNESS_MODEL:
+            source = model_source(normalized, config.harness.default)
         return ConfigSetResult(
             path=path.as_posix(),
             key=request.key,
             value=normalized,
+            model_source=source,
             automation=applied,
         )
 
@@ -261,16 +267,10 @@ def parse_harness_value(value: str) -> str:
 
 
 def parse_harness_model(value: str, harness: HarnessKind) -> str:
-    token = value.strip()
-    if token not in CONTROLLED_HARNESS_MODELS:
-        allowed = ", ".join(sorted(CONTROLLED_HARNESS_MODELS))
-        raise ValidationFailed(f"harness.model must be one of: {allowed}")
-    if token not in HARNESS_MODELS[harness]:
-        allowed = ", ".join(HARNESS_MODELS[harness])
-        raise ValidationFailed(
-            f"harness.model for {harness.value} must be one of: {allowed}"
-        )
-    return token
+    try:
+        return validate_harness_model(value, harness)
+    except ValueError as error:
+        raise ValidationFailed(str(error)) from error
 
 
 def parse_config_duration(value: str, label: str) -> timedelta:

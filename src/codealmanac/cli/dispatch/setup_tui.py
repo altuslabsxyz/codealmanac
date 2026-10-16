@@ -1,55 +1,61 @@
 import argparse
 
+from codealmanac.cli.dispatch.config import resolve_harness_model
+from codealmanac.cli.dispatch.setup_wizard.choices import choose_setup_option
 from codealmanac.cli.dispatch.setup_wizard.models import (
     SetupCancelled,
     SetupSelections,
 )
 from codealmanac.cli.dispatch.setup_wizard.options import (
     change_options,
+    listing_for,
     maintenance_options,
     model_for_index,
     model_index,
     model_options,
     parse_setup_targets,
+    requested_model_selections,
     runner_for_index,
     runner_index,
     runner_options,
-    shortcut_option_index,
     target_default_index,
     target_options,
     targets_for_index,
     telemetry_options,
     update_options,
+    wizard_current_model,
 )
 from codealmanac.cli.dispatch.setup_wizard.terminal import (
-    read_setup_key,
     supports_interactive_setup,
     wizard_terminal,
 )
 from codealmanac.cli.render.setup import (
     SetupChoiceScreen,
     background_item_selection_notices,
-    render_setup_choice_screen,
 )
-from codealmanac.services.config.models import (
-    DEFAULT_HARNESS_MODELS,
-    UserConfig,
+from codealmanac.services.config.models import UserConfig
+from codealmanac.services.harnesses.models import (
+    HarnessKind,
+    HarnessModelListing,
+    HarnessReadiness,
 )
-from codealmanac.services.harnesses.models import HarnessKind, HarnessReadiness
 
 
 def resolve_setup_selections(
     args: argparse.Namespace,
     user_config: UserConfig,
     runner_status: tuple[HarnessReadiness, ...] = (),
+    model_listings: tuple[HarnessModelListing, ...] = (),
 ) -> SetupSelections:
     defaults = default_setup_selections(args, user_config)
     if args.yes or args.json or not supports_interactive_setup():
-        return defaults
+        return requested_model_selections(defaults, args.model)
     return interactive_setup_selections(
         defaults,
         runner_status,
         include_telemetry=not args.no_telemetry,
+        requested_model=args.model,
+        model_listings=model_listings,
     )
 
 
@@ -57,14 +63,13 @@ def default_setup_selections(
     args: argparse.Namespace,
     user_config: UserConfig,
 ) -> SetupSelections:
+    """Selections from config and every flag except `--model`, which is applied
+    against the runner that ends up selected."""
+
     harness = (
         user_config.harness.default if args.runner is None else HarnessKind(args.runner)
     )
-    model = (
-        user_config.harness.model
-        if harness == user_config.harness.default
-        else DEFAULT_HARNESS_MODELS[harness]
-    )
+    model = resolve_harness_model(harness, user_config)
     return SetupSelections(
         targets=parse_setup_targets(args.target),
         harness=harness,
@@ -82,6 +87,8 @@ def interactive_setup_selections(
     runner_status: tuple[HarnessReadiness, ...],
     *,
     include_telemetry: bool,
+    requested_model: str | None = None,
+    model_listings: tuple[HarnessModelListing, ...] = (),
 ) -> SetupSelections:
     try:
         with wizard_terminal():
@@ -89,6 +96,8 @@ def interactive_setup_selections(
                 defaults,
                 runner_status,
                 include_telemetry=include_telemetry,
+                requested_model=requested_model,
+                model_listings=model_listings,
             )
     except KeyboardInterrupt as error:
         raise SetupCancelled() from error
@@ -99,6 +108,8 @@ def wizard_selections(
     runner_status: tuple[HarnessReadiness, ...],
     *,
     include_telemetry: bool,
+    requested_model: str | None = None,
+    model_listings: tuple[HarnessModelListing, ...] = (),
 ) -> SetupSelections:
     total_steps = 7 if include_telemetry else 6
     runner_index_value = choose_setup_option(
@@ -112,16 +123,18 @@ def wizard_selections(
         initial_index=runner_index(defaults.harness),
     )
     harness = runner_for_index(runner_index_value)
+    listing = listing_for(harness, model_listings)
+    current_model = wizard_current_model(harness, defaults, requested_model, listing)
     model_index_value = choose_setup_option(
         SetupChoiceScreen(
             step=2,
             title="Runner model",
             question=f"Which {harness.value} model should maintain your wiki?",
-            options=model_options(harness),
+            options=model_options(harness, current_model, listing),
             visual="list",
             total_steps=total_steps,
         ),
-        initial_index=model_index(harness, defaults.model),
+        initial_index=model_index(harness, current_model, listing),
     )
     target_index = choose_setup_option(
         SetupChoiceScreen(
@@ -186,55 +199,10 @@ def wizard_selections(
     return SetupSelections(
         targets=targets_for_index(target_index),
         harness=harness,
-        model=model_for_index(harness, model_index_value),
+        model=model_for_index(harness, model_index_value, current_model, listing),
         auto_update=update_index == 0,
         auto_commit=change_index == 0,
         telemetry_enabled=telemetry_enabled,
         sync_off=maintenance_index == 1,
         garden_off=maintenance_index == 1,
     )
-
-
-def choose_setup_option(screen: SetupChoiceScreen, initial_index: int) -> int:
-    selected_index = enabled_index(screen, initial_index)
-    render_setup_choice_screen(screen, selected_index)
-    while True:
-        key = read_setup_key()
-        if key in {"\x03", "\x1b", "q"}:
-            raise SetupCancelled()
-        if key in {"\r", "\n"}:
-            if screen.options[selected_index].disabled:
-                render_setup_choice_screen(screen, selected_index)
-                continue
-            return selected_index
-        shortcut_index = shortcut_option_index(screen, key)
-        if shortcut_index is not None:
-            return shortcut_index
-        next_index = selected_index
-        if key in {"\x1b[D", "a"}:
-            next_index = (selected_index - 1) % len(screen.options)
-        elif key in {"\x1b[C", "d"}:
-            next_index = (selected_index + 1) % len(screen.options)
-        elif key in {"\x1b[A", "w"}:
-            next_index = (selected_index - 1) % len(screen.options)
-        elif key in {"\x1b[B", "s"}:
-            next_index = (selected_index + 1) % len(screen.options)
-        if next_index != selected_index:
-            selected_index = enabled_index(screen, next_index, selected_index)
-            render_setup_choice_screen(screen, selected_index)
-
-
-def enabled_index(
-    screen: SetupChoiceScreen,
-    index: int,
-    fallback: int = 0,
-) -> int:
-    if len(screen.options) == 0:
-        return index
-    if not screen.options[index].disabled:
-        return index
-    for offset in range(1, len(screen.options) + 1):
-        candidate = (index + offset) % len(screen.options)
-        if not screen.options[candidate].disabled:
-            return candidate
-    return fallback

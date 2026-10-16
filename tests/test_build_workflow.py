@@ -141,7 +141,7 @@ def test_initialize_rejects_existing_almanac(
             BuildRequest(
                 path=repo,
                 harness=HarnessKind.CODEX,
-                model="gpt-5.5",
+                model="gpt-6.1-sol",
                 name="renamed",
             )
         )
@@ -185,7 +185,7 @@ def test_queued_build_uses_harness_prompt_and_records_build_operation(
         BuildRequest(
             path=repo,
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
             name="repo",
             guidance="Write the smallest useful first wiki.",
         )
@@ -195,7 +195,7 @@ def test_queued_build_uses_harness_prompt_and_records_build_operation(
         StartedBuildRequest(
             run_id=queued.run_id,
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
             guidance="Write the smallest useful first wiki.",
         )
     )
@@ -205,7 +205,7 @@ def test_queued_build_uses_harness_prompt_and_records_build_operation(
     assert result.run.summary == "built wiki"
     assert result.index.pages_indexed == 2
     assert runtime_index_path(isolated_home, result.repository).is_file()
-    assert adapter.requests[0].model == "gpt-5.5"
+    assert adapter.requests[0].model == "gpt-6.1-sol"
     assert adapter.requests[0].agent is HarnessAgentKind.BUILD
     assert adapter.requests[0].prompt.startswith("Runtime context:\n{")
     assert "Build Operation" not in adapter.requests[0].prompt
@@ -277,7 +277,7 @@ def test_queue_build_records_run_before_worker_checks_runner(
         BuildRequest(
             path=repo,
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
             name="repo",
         )
     )
@@ -307,7 +307,7 @@ def test_worker_fails_build_when_selected_runner_is_not_ready(
         BuildRequest(
             path=repo,
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
             name="repo",
         )
     )
@@ -349,7 +349,7 @@ def test_build_classifies_adapter_invocation_errors_as_provider_execution(
         BuildRequest(
             path=repo,
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
             name="repo",
         )
     )
@@ -359,7 +359,7 @@ def test_build_classifies_adapter_invocation_errors_as_provider_execution(
             StartedBuildRequest(
                 run_id=queued.run_id,
                 harness=HarnessKind.CODEX,
-                model="gpt-5.5",
+                model="gpt-6.1-sol",
             )
         )
 
@@ -383,7 +383,7 @@ def test_build_classifies_live_event_store_failure_as_internal(
         BuildRequest(
             path=repo,
             harness=HarnessKind.CODEX,
-            model="gpt-5.5",
+            model="gpt-6.1-sol",
             name="repo",
         )
     )
@@ -399,7 +399,7 @@ def test_build_classifies_live_event_store_failure_as_internal(
             StartedBuildRequest(
                 run_id=queued.run_id,
                 harness=HarnessKind.CODEX,
-                model="gpt-5.5",
+                model="gpt-6.1-sol",
             )
         )
 

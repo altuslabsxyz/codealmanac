@@ -2,6 +2,7 @@ from codealmanac.services.automation.defaults import (
     duration_text,
 )
 from codealmanac.services.automation.models import AutomationTask
+from codealmanac.services.config.model_catalog import model_source
 from codealmanac.services.setup.automation import (
     recommendation_tasks,
     should_install_automation,
@@ -25,6 +26,7 @@ def setup_plan(request: RunSetupRequest) -> SetupPlan:
     return SetupPlan(
         default_harness=request.harness,
         harness_model=request.model,
+        harness_model_source=model_source(request.model, request.harness),
         instruction_targets=request.targets,
         auto_commit=request.auto_commit,
         automation_mode=mode,

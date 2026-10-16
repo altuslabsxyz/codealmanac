@@ -26,7 +26,11 @@ from codealmanac.services.automation.requests import (
 )
 from codealmanac.services.config.service import ConfigService
 from codealmanac.services.config.store import ConfigStore
-from codealmanac.services.harnesses.models import HarnessKind, HarnessReadiness
+from codealmanac.services.harnesses.models import (
+    HarnessKind,
+    HarnessModelListing,
+    HarnessReadiness,
+)
 from codealmanac.services.setup.models import (
     PackageUninstallResult,
     PackageUninstallStatus,
@@ -420,6 +424,14 @@ class FakeRunnerProbe:
             available=self.available,
             message=self.message,
         )
+
+    def models(self, kind: HarnessKind) -> HarnessModelListing:
+        return HarnessModelListing(
+            kind=kind,
+            listed=False,
+            message="model listing is not available",
+        )
+
 
 
 class FakeSetupAutomationManager:
