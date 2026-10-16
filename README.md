@@ -25,10 +25,25 @@ indexed locally, and reviewed in Git like any other code change.
 
 ## Quickstart
 
+This repository is the Altus fork of CodeAlmanac. It tracks upstream and adds
+the current runner model catalog, explicit model ids, and account-aware setup
+(see [Runner Models](#runner-models)). Install it straight from Git with uv.
+The package keeps the `codealmanac` name, so `codealmanac update` and the
+scheduled Update job keep upgrading from this fork:
+
 ```bash
-uv tool install codealmanac@latest
+uv tool install git+https://github.com/altuslabsxyz/codealmanac
 codealmanac setup
 ```
+
+Pin a release instead of tracking `main`:
+
+```bash
+uv tool install "git+https://github.com/altuslabsxyz/codealmanac@v0.5.0"
+```
+
+The upstream PyPI release installs with `uv tool install codealmanac@latest`.
+Switching between the two is `uv tool install --force` with the other source.
 
 See [Setup](#setup) for configuration options.
 

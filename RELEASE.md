@@ -88,6 +88,35 @@ python -m pip index versions codealmanac
 Do not upload a `dev` version as the stable release. If a bad release is
 published, fix forward with a new version.
 
+## Fork Releases (altuslabsxyz/codealmanac)
+
+The Altus fork is distributed from Git, not PyPI. The distribution name stays
+`codealmanac`, so `codealmanac update` (`uv tool upgrade codealmanac`) keeps
+following the Git source that uv recorded at install time, and the scheduled
+Update job keeps working. Publishing a renamed package such as
+`codealmanac-altus` to PyPI would need a PyPI project with its own token or
+Trusted Publisher, plus a rename of `PACKAGE_NAME` in the update service, the
+README install contract, and the badges. Do that only as an explicit decision.
+
+Cut a fork release from a clean `main`:
+
+```bash
+uv run pytest && uv run ruff check .
+# bump [project] version in pyproject.toml, move CHANGELOG "Unreleased" under it
+uv lock
+git commit -am "chore(release): bump codealmanac to X.Y.Z"
+git tag vX.Y.Z
+git push altus main vX.Y.Z
+gh release create vX.Y.Z --repo altuslabsxyz/codealmanac --notes-file notes.md
+```
+
+Users install or upgrade with:
+
+```bash
+uv tool install --force git+https://github.com/altuslabsxyz/codealmanac
+uv tool install --force "git+https://github.com/altuslabsxyz/codealmanac@vX.Y.Z"
+```
+
 ## Versioning Policy
 
 CodeAlmanac is pre-1.0.
